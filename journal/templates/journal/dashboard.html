@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trading Journal Dashboard</title>
+  <style>
+    body { font-family: Segoe UI, sans-serif; background:#0b0f1a; color:#fff; }
+    header { display:flex; justify-content: space-between; align-items:center; padding:1rem; background:#121826; border-bottom:1px solid rgba(0,255,128,0.2); }
+    a, a:visited { color:#00ccff; }
+    .container { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+    .banner { background:#161b22; border:1px solid rgba(0,255,128,0.3); padding:1rem; border-radius:10px; margin-bottom:1rem; }
+    .btn { display:inline-block; padding:.6rem 1rem; background:linear-gradient(90deg,#00ff99,#00ccff); color:#0d1117; border-radius:6px; font-weight:bold; text-decoration:none; }
+    .muted { color:#aaa; }
+    .error { color: #ff6b6b; }
+    /* Cards */
+    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 1rem; }
+    .card { background:#161b22; border:1px solid rgba(0,255,128,0.25); border-radius:12px; padding:1rem; display:flex; flex-direction:column; gap:.5rem; }
+    .card h3 { margin:0; font-size:1.1rem; }
+    .row { display:flex; justify-content:space-between; align-items:center; }
+    .badge { padding:.2rem .5rem; border-radius:6px; font-size:.8rem; }
+    .buy { background: rgba(0, 204, 255, 0.15); color:#7fd9ff; border:1px solid rgba(0,204,255,0.35); }
+    .sell { background: rgba(0, 255, 153, 0.15); color:#7fffd1; border:1px solid rgba(0,255,153,0.35); }
+    .pnl { font-size:1.2rem; font-weight:bold; }
+    .pnl.profit { color:#00ff99; }
+    .pnl.loss { color:#ff6b6b; }
+    .kv { color:#9bb; font-size:.9rem; }
+    .notes { color:#cdd; font-size:.9rem; white-space:pre-wrap; }
+  </style>
+</head>
+<body data-user-id="{{ request.user.id }}" data-is-unlocked="{{ is_unlocked|yesno:'true,false' }}">
+  <header>
+    <div><strong>Trading Journal</strong></div>
+    <nav>
+      {% if is_unlocked %}
+        <span class="muted">Unlocked</span>
+      {% else %}
+        <a href="{% url 'journal:unlock' %}">Unlock</a>
+      {% endif %}
+      &nbsp;|&nbsp;
+      <a href="{% url 'journal:add_trade' %}">Add Trade</a>
+      &nbsp;|&nbsp;
+      <a href="{% url 'login:logout' %}">Logout</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    {% if load_error %}
+      <div class="banner" style="border-color:#ff6b6b; color:#ffcccc;">
+        {{ load_error }}
+      </div>
+    {% endif %}
+    {% if not is_unlocked %}
+      <div class="banner">Your data is locked. To view trade details, please <a href="{% url 'journal:unlock' %}">unlock</a> with your password.</div>
+    {% endif %}
+
+    <h2>Trades</h2>
+    <div id="cardsEmpty" class="muted" style="display:none;">No trades yet.</div>
+    <div id="cardsGrid" class="grid"></div>
+  </div>
+
+  <script>
+    (function(){
+      const isUnlocked = document.body.dataset.isUnlocked === 'true';
+      if(!isUnlocked){ return; }
+      const userId = document.body.dataset.userId;
+      const storageKey = `tj_trades_${userId}`;
+      let trades = [];
+      try { trades = JSON.parse(localStorage.getItem(storageKey)) || []; } catch(e) { trades = []; }
+
+      const grid = document.getElementById('cardsGrid');
+      const empty = document.getElementById('cardsEmpty');
+
+      if(!trades.length){ empty.style.display = 'block'; return; }
+
+      function el(tag, cls, text){
+        const e = document.createElement(tag);
+        if(cls) e.className = cls;
+        if(text !== undefined) e.textContent = text;
+        return e;
+      }
+
+      trades.forEach(t => {
+        // Compute default P/L if missing
+        let pnl = t.pnl;
+        if(pnl === undefined || pnl === null){
+          const qty = parseFloat(t.quantity) || 0;
+          const price = parseFloat(t.price) || 0;
+          const side = String(t.side || '').toLowerCase();
+          const sign = side === 'sell' ? 1 : -1;
+          pnl = Math.round((sign * qty * price) * 100) / 100;
+        }
+
+        const card = el('div', 'card');
+        const row1 = el('div', 'row');
+        row1.appendChild(el('h3', null, t.symbol || ''));
+        const badge = el('span', `badge ${t.side === 'buy' ? 'buy' : 'sell'}`, (t.side || '').toString().charAt(0).toUpperCase() + (t.side || '').toString().slice(1));
+        row1.appendChild(badge);
+        card.appendChild(row1);
+
+        card.appendChild(el('div', 'row kv')); card.lastChild.appendChild(el('span', null, 'Qty')); card.lastChild.appendChild(el('span', null, String(t.quantity || '')));
+        card.appendChild(el('div', 'row kv')); card.lastChild.appendChild(el('span', null, 'Price')); card.lastChild.appendChild(el('span', null, String(t.price || '')));
+        card.appendChild(el('div', 'row kv')); card.lastChild.appendChild(el('span', null, 'Date')); card.lastChild.appendChild(el('span', null, String(t.date || '')));
+        if(t.notes){
+          card.appendChild(el('div', 'notes', t.notes));
+        }
+        const pnlRow = el('div', 'row');
+        const pnlDiv = el('div', `pnl ${pnl >= 0 ? 'profit' : 'loss'}`, `${pnl >= 0 ? '+' : ''}${pnl}`);
+        pnlRow.appendChild(pnlDiv);
+        card.appendChild(pnlRow);
+
+        grid.appendChild(card);
+      });
+    })();
+  </script>
+</body>
+</html>

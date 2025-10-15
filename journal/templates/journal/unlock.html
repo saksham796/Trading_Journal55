@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Unlock Journal</title>
+  <style>
+    body { font-family: Segoe UI, sans-serif; background: #0b0f1a; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; }
+    .card { background: #161b22; border: 1px solid rgba(0,255,128,0.3); padding: 2rem; border-radius: 10px; width: 360px; }
+    label { display:block; margin-bottom: .5rem; color: #ccc; }
+    input { width:100%; padding: .7rem; border: 1px solid rgba(0,255,128,0.3); background:#0d1117; color:#fff; border-radius:6px; }
+    button { width:100%; margin-top:1rem; padding:.8rem; background: linear-gradient(90deg, #00ff99, #00ccff); border:none; border-radius:6px; color:#0d1117; font-weight:bold; cursor:pointer; }
+    a { color:#00ccff; }
+    .msg { color: #ff6b6b; margin-top: .75rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Unlock Your Data</h2>
+    <p>Enter your password to decrypt your trades for this session.</p>
+    <form method="post">
+      {% csrf_token %}
+      <label for="pwd">Password</label>
+      <input id="pwd" name="password" type="password" required />
+      <button type="submit">Unlock</button>
+      {% if messages %}
+        {% for message in messages %}
+          <div class="msg">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    </form>
+    <p style="margin-top:1rem;"><a href="{% url 'login:logout' %}">Logout</a> | <a href="{% url 'journal:dashboard' %}">Skip for now</a></p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Add Trade</title>
+  <style>
+    body { font-family: Segoe UI, sans-serif; background:#0b0f1a; color:#fff; }
+    .container { max-width: 720px; margin: 2rem auto; padding: 1rem; background:#161b22; border:1px solid rgba(0,255,128,0.3); border-radius:10px; }
+    label { display:block; margin-top: .6rem; color:#ccc; }
+    .hint { color:#8aa; font-size:.85rem; }
+    input, select, textarea { width:100%; padding:.6rem; background:#0d1117; color:#fff; border:1px solid rgba(0,255,128,0.3); border-radius:6px; }
+    button { margin-top: 1rem; padding:.8rem 1.2rem; background:linear-gradient(90deg,#00ff99,#00ccff); color:#0d1117; border:none; border-radius:6px; font-weight:bold; cursor:pointer; }
+    a { color:#00ccff; }
+    .msg { margin-top:.6rem; }
+  </style>
+</head>
+<body data-user-id="{{ request.user.id }}">
+  <div class="container">
+    <h2>Add Trade</h2>
+    {% if messages %}
+      <div style="margin-top:.6rem; color:#ff6b6b;">
+        {% for message in messages %}
+          <div>{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <form id="tradeForm">
+      <label for="symbol">Symbol</label>
+      <input type="text" id="symbol" name="symbol" placeholder="AAPL" required />
+
+      <label for="side">Side</label>
+      <select id="side" name="side" required>
+        <option value="buy">Buy</option>
+        <option value="sell">Sell</option>
+      </select>
+
+      <label for="quantity">Quantity</label>
+      <input type="number" step="any" id="quantity" name="quantity" required />
+
+      <label for="price">Price</label>
+      <input type="number" step="any" id="price" name="price" required />
+
+      <label for="pnl">Profit / Loss (optional)</label>
+      <input type="number" step="any" id="pnl" name="pnl" placeholder="e.g., 125.50 for profit, -60.00 for loss" />
+      <div class="hint">If left blank, we will treat buys as negative cash flow and sells as positive based on qty × price.</div>
+
+      <label for="date">Date</label>
+      <input type="date" id="date" name="date" />
+
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes" rows="4" placeholder="Setup, psychology, mistakes, improvements..."></textarea>
+
+      <button type="submit">Save Trade</button>
+      <div class="msg" id="clientMsg"></div>
+    </form>
+    <p style="margin-top:1rem;"><a href="{% url 'journal:dashboard' %}">Back to Dashboard</a></p>
+  </div>
+
+  <script>
+    (function(){
+      const userId = document.body.dataset.userId;
+      const storageKey = `tj_trades_${userId}`;
+      const form = document.getElementById('tradeForm');
+      const msg = document.getElementById('clientMsg');
+      const dashboardUrl = "{% url 'journal:dashboard' %}";
+
+      function getTrades(){
+        try { return JSON.parse(localStorage.getItem(storageKey)) || []; }
+        catch(e){ return []; }
+      }
+      function setTrades(arr){ localStorage.setItem(storageKey, JSON.stringify(arr)); }
+
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const symbol = document.getElementById('symbol').value.trim().toUpperCase();
+        const side = document.getElementById('side').value.trim().toLowerCase();
+        const quantity = parseFloat(document.getElementById('quantity').value);
+        const price = parseFloat(document.getElementById('price').value);
+        const pnlStr = document.getElementById('pnl').value.trim();
+        const notes = document.getElementById('notes').value.trim();
+        const date = document.getElementById('date').value;
+
+        if(!symbol || (side !== 'buy' && side !== 'sell') || isNaN(quantity) || isNaN(price)){
+          msg.style.color = '#ff6b6b';
+          msg.textContent = 'Please provide valid symbol, side, quantity, and price.';
+          return;
+        }
+
+        let pnl = null;
+        if(pnlStr){
+          const p = parseFloat(pnlStr);
+          if(isNaN(p)){
+            msg.style.color = '#ff6b6b';
+            msg.textContent = 'P/L must be a number if provided.';
+            return;
+          }
+          pnl = p;
+        }
+
+        const trade = {
+          id: Date.now().toString(),
+          symbol, side, quantity, price, notes, date
+        };
+        if(pnl !== null) trade.pnl = pnl;
+
+        const trades = getTrades();
+        trades.unshift(trade);
+        setTrades(trades);
+
+        msg.style.color = '#00ff99';
+        msg.textContent = 'Trade saved locally on your device.';
+        setTimeout(()=>{ window.location.href = dashboardUrl; }, 600);
+      });
+    })();
+  </script>
+</body>
+</html>
